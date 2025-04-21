@@ -1,65 +1,83 @@
 // src/components/LivePacketStream.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import PacketCard from './PacketCard';
 import StatsBar from './StatsBar';
 import { Packet } from '../type/Packet';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const LivePacketStream: React.FC = () => {
   const { packets, startSniffer } = useSocket();
+  const [isSnifferActive, setIsSnifferActive] = useState(false);
 
-  const fakePackets: Packet[] = [
-    {
-      timestamp: new Date().toISOString(),
-      src_ip: '10.0.0.5',
-      dst_ip: '192.168.0.1',
-      protocol: 'TCP',
-      length: 512,
-      scanner: true
-    },
-    {
-      timestamp: new Date().toISOString(),
-      src_ip: '172.16.0.3',
-      dst_ip: '8.8.8.8',
-      protocol: 'UDP',
-      length: 128,
-      scanner: false
-    }
-  ];
-
-  const allPackets = [...fakePackets, ...packets];
+  const handleStartSniffer = () => {
+    startSniffer();
+    setIsSnifferActive(true);
+  };
 
   return (
-    <div className="w-screen h-screen flex bg-gray-900 text-white overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-1/4 min-w-[250px] bg-gray-800 p-6 flex flex-col justify-between">
-        <div>
-          <h2 className="text-2xl font-bold mb-6">Live Packet Stream</h2>
-          <button
-            onClick={startSniffer}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded mb-6"
-          >
-            Start Sniffer
-          </button>
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* Main Content Area */}
+      <div className="lg:col-span-3 space-y-6">
+        {/* Control Panel */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white">Live Packet Stream</h2>
+              <p className="text-gray-400">Monitor network traffic in real-time</p>
+            </div>
+            <button
+              onClick={handleStartSniffer}
+              disabled={isSnifferActive}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                isSnifferActive
+                  ? 'bg-green-500/20 text-green-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              {isSnifferActive ? 'Sniffer Active' : 'Start Sniffer'}
+            </button>
+          </div>
         </div>
-        {/* Stats Bar */}
-        <div>
-          <StatsBar packets={allPackets} />
+
+        {/* Packet Display */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 h-[calc(100vh-300px)] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white">Live Packets</h3>
+            <span className="text-sm text-gray-400">{packets.length} packets captured</span>
+          </div>
+          
+          <AnimatePresence>
+            {packets.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center justify-center h-64"
+              >
+                <p className="text-gray-400">No packets captured yet. Start the sniffer to begin monitoring.</p>
+              </motion.div>
+            ) : (
+              <div className="space-y-4">
+                {packets.map((packet, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <PacketCard packet={packet} />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* Packet Display */}
-      <div className="flex-1 p-6 overflow-y-auto bg-gray-950">
-        <h2 className="text-xl font-bold mb-4">Live Packets</h2>
-        {allPackets.length === 0 ? (
-          <p className="text-gray-400">No packets captured yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {allPackets.map((packet, index) => (
-              <PacketCard key={index} packet={packet} />
-            ))}
-          </div>
-        )}
+      {/* Stats Sidebar */}
+      <div className="lg:col-span-1">
+        <StatsBar packets={packets} />
       </div>
     </div>
   );
